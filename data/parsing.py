@@ -10,21 +10,36 @@ from matplotlib import pyplot
 # Load the STL file.
 my_mesh = mesh.Mesh.from_file('data/cube.stl')
 
+# print(my_mesh.vectors)
+
 # Initialise adjacency matrix with shape of NUM_VERTICES ** 2.
 vertices_num = len(my_mesh.points) * 3
 adjacency_matrix = np.zeros(
     shape=(vertices_num, len(my_mesh.points) * 3), dtype=int)
-print(adjacency_matrix)
 
-# Go through each vertice, starting from the first to the last one in the file.
-for triangle in my_mesh.points:
-    # for vertice in range(0, len(triangle), 3):
-    #     print(vertice)
-    vertice1 = triangle[:3]
-    vertice2 = triangle[3: 6]
-    vertice3 = triangle[6:]
+# Go through each vertex and check
+# O(n ** 2) complexity to build the adjacency matrix.
+for i in range(len(my_mesh.vectors)):
+    triangle1 = my_mesh.vectors[i]
 
-    if vertice1 not in vertices_dict:
-        vertices_dict[vertice1] = []
+    for j in range(len(triangle1)):
+        triangle1_vertex = triangle1[j]
 
-    print(vertice1, vertice2, vertice3)
+        for k in range(len(my_mesh.vectors)):
+            triangle2 = my_mesh.vectors[j]
+
+            for z in range(len(triangle2)):
+                triangle2_vertex = triangle2[z]
+
+                # TODO: Sanity check for float comparison.
+
+                # Do not add the loop connection.
+                if (triangle1_vertex == triangle2_vertex).all():
+                    continue
+
+                # Check if this vertex is within the same triangle with other vertex.
+                if triangle1_vertex in triangle2:
+                    adjacency_matrix[j][z] = 1
+
+for row in adjacency_matrix:
+    print(row)
