@@ -5,27 +5,53 @@ import torch
 
 class GraphGAN(nn.Module):
 
-    def __init__(self, z_size=100, num_vertex=100, batch_size=128, lr=0.001, beta1=0.9, beta2=0.999):
+    def __init__(self, z_size=100, num_vertex=100, lr=0.001, beta1=0.9, beta2=0.999, device='cpu'):
         super(GraphGAN, self).__init__()
+
+        self.z_size = z_size
+        self.device = device
 
         self.generator = Generator(z_size, num_vertex)
         self.discriminator = Discriminator(num_vertex)
 
-    def forward(self, real_data, latent_vector):
-        # Generate fake data
-        fake_data = self.generator(latent_vector)
+    def real_loss(self, d_out, batch_size, smooth=False):
+        # label smoothing
+        if smooth:
+            labels = torch.FloatTensor(batch_size).uniform_(0.9, 1).to(self.device)
+        else:
+            labels = torch.ones(batch_size)
 
-        # Compute the discriminator outputs on real and fake data
-        real_output_d = self.discriminator(real_data)
-        fake_output_d = self.discriminator(fake_data.detach())
+        labels = labels.to(self.device)
+        criterion = nn.BCELoss()
+        loss = criterion(d_out.squeeze(), labels)
+        return loss
 
-        # Compute the discriminator loss
-        # d_loss_real = self.gan_loss(real_output, True)
-        # d_loss_fake = self.gan_loss(fake_output, False)
-        # d_loss = (d_loss_real + d_loss_fake) * 0.5
+    def fake_loss(self, d_out, batch_size):
+        labels = torch.FloatTensor(batch_size).uniform_(0, 0.1).to(self.device)  # fake labels = 0
+        labels = labels.to(self.device)
+        criterion = nn.BCELoss()
+        # calculate loss
+        loss = criterion(d_out.squeeze(), labels)
+        return loss
 
-        # Compute the generator loss
-        fake_output_g = self.discriminator(fake_data.detach())
-        # g_loss = self.gan_loss(fake_output, True)
+    def discriminator_part(self, real_images, batch_size):
+        D_real = self.discriminator(real_images)
+        d_real_loss = self.real_loss(D_real, batch_size)
 
-        return real_output_d, fake_output_d, fake_output_g
+        z = torch.FloatTensor(batch_size, 100).uniform_(-1, 1).to(self.device)
+        fake_images = self.generator(z)
+
+        D_fake = self.discriminator(fake_images)
+        d_fake_loss = self.fake_loss(D_fake, batch_size)
+
+        d_loss = d_real_loss + d_fake_loss
+        return d_loss
+
+    def generator_part(self, batch_size):
+        z = torch.FloatTensor(batch_size, 100).uniform_(-1, 1).to(self.device)
+
+        fake_images = self.generator(z)
+
+        D_fake = self.discriminator(fake_images)
+        g_loss = self.real_loss(D_fake, batch_size)
+        return g_loss
