@@ -1,8 +1,11 @@
 import torch.nn as nn
-import torch
 
 
 class Discriminator(nn.Module):
+    """
+    The class responsible for the discriminator.
+    It classifies the input graph and returns a probability of how likely it is that the given graph is real or synthetic.
+    """
 
     def __init__(self, num_vertex):
         super(Discriminator, self).__init__()
@@ -19,6 +22,11 @@ class Discriminator(nn.Module):
 
 
 class Generator(nn.Module):
+    """
+    The class responsible for the generator.
+    It generates a graph with `num_vertex` vertices from input noize
+    """
+
     def __init__(self, z_size, num_vertex):
         super(Generator, self).__init__()
         self.model = nn.Sequential(

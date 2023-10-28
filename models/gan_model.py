@@ -4,54 +4,112 @@ import torch
 
 
 class GraphGAN(nn.Module):
+    """
+    The class for the generating graphs using GAN architecture.
+    """
 
-    def __init__(self, z_size=100, num_vertex=100, lr=0.001, beta1=0.9, beta2=0.999, device='cpu'):
+    def __init__(self, z_size=100, num_vertex=100, lr=0.001, beta1=0.9, beta2=0.999, device='cpu',
+                 criterion=nn.BCELoss()):
         super(GraphGAN, self).__init__()
 
         self.z_size = z_size
         self.device = device
+        self.num_vertex = num_vertex
+        self.criterion = criterion
 
         self.generator = Generator(z_size, num_vertex)
         self.discriminator = Discriminator(num_vertex)
 
-    def real_loss(self, d_out, batch_size, smooth=False):
+        self.optimizer_g = torch.optim.Adam(self.generator.parameters(), lr=lr, betas=(beta1, beta2))
+        self.optimizer_d = torch.optim.Adam(self.discriminator.parameters(), lr=lr, betas=(beta1, beta2))
+
+    def _real_loss(self, d_out, input_size, smooth=False):
+        """
+        Function that calculates loss for images with label 1. Also supports label smoothing
+        :param d_out: input from the discriminator
+        :param input_size: size of the input
+        :param smooth: apply label smoothing or not
+        :return: loss
+        """
         # label smoothing
         if smooth:
-            labels = torch.FloatTensor(batch_size).uniform_(0.9, 1).to(self.device)
+            labels = torch.FloatTensor(input_size).uniform_(0.9, 1)
         else:
-            labels = torch.ones(batch_size)
-
+            labels = torch.ones(input_size)
         labels = labels.to(self.device)
-        criterion = nn.BCELoss()
-        loss = criterion(d_out.squeeze(), labels)
+        loss = self.criterion(d_out.squeeze(), labels)
         return loss
 
-    def fake_loss(self, d_out, batch_size):
-        labels = torch.FloatTensor(batch_size).uniform_(0, 0.1).to(self.device)  # fake labels = 0
+    def _fake_loss(self, d_out, input_size, smooth=False):
+        """
+        Function that calculates loss for images with label 0. Also supports label smoothing
+        :param d_out: input from the discriminator
+        :param input_size: size of the input
+        :param smooth: apply label smoothing or not
+        :return: loss
+        """
+        if smooth:
+            labels = torch.FloatTensor(input_size).uniform_(0, 0.1)
+        else:
+            labels = torch.zeros(input_size)
         labels = labels.to(self.device)
-        criterion = nn.BCELoss()
-        # calculate loss
-        loss = criterion(d_out.squeeze(), labels)
+        loss = self.criterion(d_out.squeeze(), labels)
         return loss
 
-    def discriminator_part(self, real_images, batch_size):
+    def _discriminator_part(self, real_images, input_size):
+        """
+        Discriminator part of the GAN: classifies real images and fake images.
+        :param real_images: batch of real images
+        :param input_size:
+        :return: discriminator loss
+        """
         D_real = self.discriminator(real_images)
-        d_real_loss = self.real_loss(D_real, batch_size)
 
-        z = torch.FloatTensor(batch_size, 100).uniform_(-1, 1).to(self.device)
+        z = torch.FloatTensor(input_size, 100).uniform_(-1, 1).to(self.device)
         fake_images = self.generator(z)
 
         D_fake = self.discriminator(fake_images)
-        d_fake_loss = self.fake_loss(D_fake, batch_size)
+        return self._fake_loss(D_fake, input_size) + self._real_loss(D_real, input_size)
 
-        d_loss = d_real_loss + d_fake_loss
-        return d_loss
-
-    def generator_part(self, batch_size):
-        z = torch.FloatTensor(batch_size, 100).uniform_(-1, 1).to(self.device)
+    def _generator_part(self, input_size):
+        """
+        Discriminator part of the GAN: generates images from noise
+        :param input_size:
+        :return:
+        """
+        z = torch.FloatTensor(input_size, 100).uniform_(-1, 1).to(self.device)
 
         fake_images = self.generator(z)
 
         D_fake = self.discriminator(fake_images)
-        g_loss = self.real_loss(D_fake, batch_size)
-        return g_loss
+        return self._real_loss(D_fake, input_size)
+
+    def generate(self):
+        """
+        Function generates graph from a random noise and return adjacency matrix of the graph
+        """
+        # TODO: make the output graph symmetric or add property to define directed and undirected graph
+        self.generator.eval()
+        with torch.no_grad():
+            z = torch.FloatTensor(1, 100).uniform_(-1, 1).to(self.device)
+            return torch.round(self.generator(z).view(-1, self.num_vertex, 42))
+
+    def forward(self, real_image, input_size):
+        # TODO: create methods for multiplicating in order to solve ordering invariant problem
+        self.generator.train()
+        self.discriminator.train()
+
+        self.optimizer_d.zero_grad()
+
+        d_loss = self._discriminator_part(real_image, input_size)
+        d_loss.backward()
+        self.optimizer_d.step()
+
+        self.optimizer_g.zero_grad()
+
+        g_loss = self._generator_part(input_size)
+
+        g_loss.backward()
+        self.optimizer_g.step()
+
+        return g_loss.item(), d_loss.item()
