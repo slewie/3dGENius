@@ -9,16 +9,21 @@ class GraphGAN(nn.Module):
     """
 
     def __init__(self, z_size=100, num_vertex=100, lr=0.001, beta1=0.9, beta2=0.999, device='cpu',
-                 criterion=nn.BCELoss()):
+                 criterion=nn.BCELoss(), generator=None, discriminator=None):
         super(GraphGAN, self).__init__()
 
         self.z_size = z_size
         self.device = device
         self.num_vertex = num_vertex
         self.criterion = criterion
-
-        self.generator = Generator(z_size, num_vertex)
-        self.discriminator = Discriminator(num_vertex)
+        if generator is None:
+            self.generator = Generator(z_size, num_vertex)
+        else:
+            self.generator = generator
+        if discriminator is None:
+            self.discriminator = Discriminator(num_vertex)
+        else:
+            self.discriminator = discriminator
 
         self.optimizer_g = torch.optim.Adam(self.generator.parameters(), lr=lr, betas=(beta1, beta2))
         self.optimizer_d = torch.optim.Adam(self.discriminator.parameters(), lr=lr, betas=(beta1, beta2))
@@ -92,7 +97,7 @@ class GraphGAN(nn.Module):
                 output[i, j] = max(tensor[0, i, j], tensor[0, j, i])
         return output
 
-    def generate(self, return_symmetric=False):
+    def generate_adj(self, return_symmetric=False):
         """
         Function generates graph from a random noise and return adjacency matrix of the graph
         :param return_symmetric: whether adjacency matrix symmetric or not
@@ -100,10 +105,17 @@ class GraphGAN(nn.Module):
         self.generator.eval()
         with torch.no_grad():
             z = torch.FloatTensor(1, 100).uniform_(-1, 1).to(self.device)
-            adjacency_matrix = torch.round(self.generator(z).view(-1, self.num_vertex, 42))
+            adjacency_matrix = torch.round(self.generator(z).view(-1, self.num_vertex, self.num_vertex))
             if return_symmetric:
                 return self._get_symmetric_adjacency_matrix(adjacency_matrix)
             return adjacency_matrix
+
+    def generate_feat(self):
+        self.generator.eval()
+        with torch.no_grad():
+            z = torch.FloatTensor(1, 100).uniform_(-1, 1).to(self.device)
+            feature_matrix = torch.round(self.generator(z).view(-1, self.num_vertex, self.generator.num_features))
+            return feature_matrix
 
     def forward(self, real_image, input_size):
         # TODO: create methods for multiplicating in order to solve ordering invariant problem

@@ -42,3 +42,34 @@ class Generator(nn.Module):
 
     def forward(self, x):
         return self.model(x)
+
+
+class FeatureGenerator(Generator):
+    """
+    Generates a matrix with features, but now this matrix doesn't connect to a graph
+    """
+    def __init__(self, z_size, num_vertex, num_features):
+        super(FeatureGenerator, self).__init__(z_size, num_vertex)
+        self.num_features = num_features
+        self.model = nn.Sequential(
+            nn.Linear(z_size, 1000),
+            nn.BatchNorm1d(1000),
+            nn.ReLU(True),
+            nn.Linear(1000, 1000),
+            nn.BatchNorm1d(1000),
+            nn.ReLU(True),
+            nn.Linear(1000, num_vertex * num_features),
+            nn.Sigmoid()
+        )
+
+
+class FeatureDiscriminator(Discriminator):
+    def __init__(self, num_vertex, num_features):
+        super(FeatureDiscriminator, self).__init__(num_vertex)
+        self.model = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(num_vertex * num_features, 1000),
+            nn.ReLU(True),
+            nn.Linear(1000, 1),
+            nn.Sigmoid()
+        )
