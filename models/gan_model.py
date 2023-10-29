@@ -60,7 +60,6 @@ class GraphGAN(nn.Module):
         """
         Discriminator part of the GAN: classifies real images and fake images.
         :param real_images: batch of real images
-        :param input_size:
         :return: discriminator loss
         """
         D_real = self.discriminator(real_images)
@@ -74,8 +73,6 @@ class GraphGAN(nn.Module):
     def _generator_part(self, input_size):
         """
         Discriminator part of the GAN: generates images from noise
-        :param input_size:
-        :return:
         """
         z = torch.FloatTensor(input_size, 100).uniform_(-1, 1).to(self.device)
 
@@ -84,15 +81,29 @@ class GraphGAN(nn.Module):
         D_fake = self.discriminator(fake_images)
         return self._real_loss(D_fake, input_size)
 
-    def generate(self):
+    def _get_symmetric_adjacency_matrix(self, tensor):
+        """
+        Makes input tensor symmetric
+        :param tensor: input adjacency matrix
+        """
+        output = torch.zeros(self.num_vertex, self.num_vertex)
+        for i in range(tensor.shape[1]):
+            for j in range(tensor.shape[2]):
+                output[i, j] = max(tensor[0, i, j], tensor[0, j, i])
+        return output
+
+    def generate(self, return_symmetric=False):
         """
         Function generates graph from a random noise and return adjacency matrix of the graph
+        :param return_symmetric: whether adjacency matrix symmetric or not
         """
-        # TODO: make the output graph symmetric or add property to define directed and undirected graph
         self.generator.eval()
         with torch.no_grad():
             z = torch.FloatTensor(1, 100).uniform_(-1, 1).to(self.device)
-            return torch.round(self.generator(z).view(-1, self.num_vertex, 42))
+            adjacency_matrix = torch.round(self.generator(z).view(-1, self.num_vertex, 42))
+            if return_symmetric:
+                return self._get_symmetric_adjacency_matrix(adjacency_matrix)
+            return adjacency_matrix
 
     def forward(self, real_image, input_size):
         # TODO: create methods for multiplicating in order to solve ordering invariant problem
