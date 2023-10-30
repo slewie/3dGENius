@@ -97,25 +97,19 @@ class GraphGAN(nn.Module):
                 output[i, j] = max(tensor[0, i, j], tensor[0, j, i])
         return output
 
+    @torch.no_grad()
     def generate_adj(self, return_symmetric=False):
         """
         Function generates graph from a random noise and return adjacency matrix of the graph
         :param return_symmetric: whether adjacency matrix symmetric or not
         """
         self.generator.eval()
-        with torch.no_grad():
-            z = torch.FloatTensor(1, 100).uniform_(-1, 1).to(self.device)
-            adjacency_matrix = torch.round(self.generator(z).view(-1, self.num_vertex, self.num_vertex))
-            if return_symmetric:
-                return self._get_symmetric_adjacency_matrix(adjacency_matrix)
-            return adjacency_matrix
-
-    def generate_feat(self):
-        self.generator.eval()
-        with torch.no_grad():
-            z = torch.FloatTensor(1, 100).uniform_(-1, 1).to(self.device)
-            feature_matrix = torch.round(self.generator(z).view(-1, self.num_vertex, self.generator.num_features))
-            return feature_matrix
+        z = torch.FloatTensor(1, 100).uniform_(-1, 1).to(self.device)
+        features, adjacency_matrix = self.generator(z)
+        features, adjacency_matrix = torch.round(features), torch.round(adjacency_matrix)
+        if return_symmetric:
+            return features, self._get_symmetric_adjacency_matrix(adjacency_matrix)
+        return features, adjacency_matrix
 
     def forward(self, real_image, input_size):
         # TODO: create methods for multiplicating in order to solve ordering invariant problem
