@@ -1,66 +1,69 @@
 import numpy as np
-import stl
 import pandas as pd
 
 from stl import mesh
-from mpl_toolkits import mplot3d
-from matplotlib import pyplot
 
 
-# Load the STL file.
-my_mesh = mesh.Mesh.from_file('data/cube.stl')
+class Parser:
+    def parse(file_path: str, output_path: str = None) -> pd.DataFrame:
+        """
+        Function that parses stl file and returns adjacency matrix with coordinates of each vertex.
 
-# Initialise adjacency matrix with shape of NUM_VERTICES ** 2.
-vertices_num = len(my_mesh.points) * 3
-adjacency_matrix = np.zeros(
-    shape=(vertices_num, len(my_mesh.points) * 3), dtype=int)
-print("Adjacency matrix shape: ", adjacency_matrix.shape)
+        file_path: path to the stl file.
+        output_path: path, where to save the output file.
+        """
 
-# Store coordinates of vertices.
-vertices_coordinates = []
+        # Load the STL file.
+        my_mesh = mesh.Mesh.from_file(file_path)
 
-# Go through each vertex and check
-# O(n ** 2) complexity to build the adjacency matrix.
-for i in range(len(my_mesh.vectors)):
-    triangle1 = np.array(my_mesh.vectors[i])
+        # Initialise adjacency matrix with shape of NUM_VERTICES ** 2.
+        vertices_num = len(my_mesh.points) * 3
+        adjacency_matrix = np.zeros(
+            shape=(vertices_num, len(my_mesh.points) * 3), dtype=int)
+        print("Adjacency matrix shape: ", adjacency_matrix.shape)
 
-    for j in range(len(triangle1)):
-        triangle1_vertex = np.array(triangle1[j])
+        # Store coordinates of vertices.
+        vertices_coordinates = []
 
-        # print(triangle1_vertex)
-        vertices_coordinates.append(triangle1_vertex)
+        # Go through each vertex and check
+        # O(n ** 2) complexity to build the adjacency matrix.
+        for i in range(len(my_mesh.vectors)):
+            triangle1 = np.array(my_mesh.vectors[i])
 
-        for k in range(len(my_mesh.vectors)):
-            triangle2 = np.array(my_mesh.vectors[k])
-            is_adjaced = False
+            for j in range(len(triangle1)):
+                triangle1_vertex = np.array(triangle1[j])
 
-            # Check if this vertex is within the same triangle with another vertex.
-            for triangle2_vertex in triangle2:
-                if (triangle1_vertex == triangle2_vertex).all():
-                    is_adjaced = True
-                    break
+                # print(triangle1_vertex)
+                vertices_coordinates.append(triangle1_vertex)
 
-            for z in range(len(triangle2)):
-                triangle2_vertex = np.array(triangle2[z])
+                for k in range(len(my_mesh.vectors)):
+                    triangle2 = np.array(my_mesh.vectors[k])
+                    is_adjaced = False
 
-                # TODO: Sanity check for float comparison.
+                    # Check if this vertex is within the same triangle with another vertex.
+                    for triangle2_vertex in triangle2:
+                        if (triangle1_vertex == triangle2_vertex).all():
+                            is_adjaced = True
+                            break
 
-                # Do not add the loop connection.
-                if (triangle1_vertex == triangle2_vertex).all():
-                    continue
-                elif is_adjaced:
-                    adjacency_matrix[i * 3 + j][k * 3 + z] = 1
+                    for z in range(len(triangle2)):
+                        triangle2_vertex = np.array(triangle2[z])
 
-for row in adjacency_matrix:
-    print(row)
+                        # TODO: Sanity check for float comparison.
 
-adj_matrix_df = pd.DataFrame(data=adjacency_matrix)
+                        # Do not add the loop connection.
+                        if (triangle1_vertex == triangle2_vertex).all():
+                            continue
+                        elif is_adjaced:
+                            adjacency_matrix[i * 3 + j][k * 3 + z] = 1
 
-coord_matrix_df = pd.DataFrame(
-    data=vertices_coordinates, columns=["x", "y", "z"])
+        adj_matrix_df = pd.DataFrame(data=adjacency_matrix)
+        coord_matrix_df = pd.DataFrame(
+            data=vertices_coordinates, columns=["x", "y", "z"])
 
-# Concatenate dataframes.
-result = pd.concat([adj_matrix_df, coord_matrix_df], axis=1)
-print(result.head(10))
+        # Concatenate dataframes.
+        result = pd.concat([adj_matrix_df, coord_matrix_df], axis=1)
 
-result.to_csv("data/cube_preprocessed.csv")
+        if output_path:
+            result.to_csv("data/cube_preprocessed.csv")
+        return result
