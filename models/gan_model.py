@@ -16,17 +16,16 @@ class GraphGAN(nn.Module):
         self.device = device
         self.num_vertex = num_vertex
         self.criterion = criterion
-        if generator is None:
-            self.generator = Generator(z_size, num_vertex)
-        else:
-            self.generator = generator
-        if discriminator is None:
-            self.discriminator = Discriminator(num_vertex)
-        else:
-            self.discriminator = discriminator
 
-        self.optimizer_g = torch.optim.Adam(self.generator.parameters(), lr=lr, betas=(beta1, beta2))
-        self.optimizer_d = torch.optim.Adam(self.discriminator.parameters(), lr=lr, betas=(beta1, beta2))
+        self.generator = generator if generator else Generator(
+            z_size, num_vertex)
+        self.discriminator = discriminator if discriminator else Discriminator(
+            num_vertex)
+
+        self.optimizer_g = torch.optim.Adam(
+            self.generator.parameters(), lr=lr, betas=(beta1, beta2))
+        self.optimizer_d = torch.optim.Adam(
+            self.discriminator.parameters(), lr=lr, betas=(beta1, beta2))
 
     def _real_loss(self, d_out, input_size, smooth=False):
         """
@@ -53,10 +52,8 @@ class GraphGAN(nn.Module):
         :param smooth: apply label smoothing or not
         :return: loss
         """
-        if smooth:
-            labels = torch.FloatTensor(input_size).uniform_(0, 0.1)
-        else:
-            labels = torch.zeros(input_size)
+        labels = torch.FloatTensor(input_size).uniform_(
+            0, 0.1) if smooth else torch.zeros(input_size)
         labels = labels.to(self.device)
         loss = self.criterion(d_out.squeeze(), labels)
         return loss
@@ -106,7 +103,8 @@ class GraphGAN(nn.Module):
         self.generator.eval()
         z = torch.FloatTensor(1, 100).uniform_(-1, 1).to(self.device)
         features, adjacency_matrix = self.generator(z)
-        features, adjacency_matrix = torch.round(features), torch.round(adjacency_matrix)
+        features, adjacency_matrix = torch.round(
+            features), torch.round(adjacency_matrix)
         if return_symmetric:
             return features, self._get_symmetric_adjacency_matrix(adjacency_matrix)
         return features, adjacency_matrix
