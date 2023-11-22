@@ -65,5 +65,4 @@ class Parser:
         result = pd.concat([adj_matrix_df, coord_matrix_df], axis=1)
 
         if output_path:
-            result.to_csv("data/cube_preprocessed.csv")
-        return result
+            result.to_csv(output_path)
