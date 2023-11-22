@@ -49,10 +49,8 @@ class Parser:
                     for z in range(len(triangle2)):
                         triangle2_vertex = np.array(triangle2[z])
 
-                        # TODO: Sanity check for float comparison.
-
                         # Do not add the loop connection.
-                        if (triangle1_vertex == triangle2_vertex).all():
+                        if np.isclose(triangle1_vertex, triangle2_vertex):
                             continue
                         elif is_adjaced:
                             adjacency_matrix[i * 3 + j][k * 3 + z] = 1
