@@ -5,6 +5,16 @@ from stl import mesh
 
 
 class Parser:
+    def output_to_stl(adjacency_matrix, feature_vector, output_path: str):
+        """
+        Saves stl file from model outputs to given path.
+
+        adjacency_matrix: intersection between each triangles' vertex with other vertices.
+        feature_vector: contains coordinates of each triangles' vertex.
+        output_path: full path (with name) to where to save the stl file.
+        """
+        pass
+
     def parse(file_path: str, output_path: str = None) -> pd.DataFrame:
         """
         Function that parses stl file and returns adjacency matrix with coordinates of each vertex.
